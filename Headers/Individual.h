@@ -2,18 +2,11 @@
 #define INDIVIDUAL_H
 #include "State.h"
 
-namespace Individual {
-  
-using namespace State;
-using namespace std;
-
 class Individual {
-  public:
-    State::State state;
+public:
+    State state;
 
-    Individual(State::State initialState): state(initialState) {};
+    Individual(State initialState = State::healthy) : state(initialState) {}
 };
-
-}
 
 #endif

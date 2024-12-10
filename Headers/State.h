@@ -1,15 +1,12 @@
 #ifndef STATE_H
 #define STATE_H
 
-namespace State {
-
 enum class State {
-  HEALTHY = 0,
-  SICK = 1,
-  DEAD = 2,
-  IMMUNE = 3
+    healthy = 0,
+    isolated = 1,
+    sick = 2,
+    dead = 3,
+    immune = 4
 };
-
-}
 
 #endif
