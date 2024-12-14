@@ -8,6 +8,7 @@
 class Individual {
 
     public:
+    
         State state;
 
         Individual(State initialState = State::healthy) : state(initialState) {}
