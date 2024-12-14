@@ -35,15 +35,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    //Ok, you can change here.
-    vector<vector<double>> transitionProbabilities = {
-        {0.62, 0.3, 0.05, 0.0, 0.03}, // healthy
-        {0.05, 0.64, 0.1, 0.01, 0.2}, // isolated
-        {0.0,  0.1,  0.65, 0.1,  0.15}, // sick
-        {0.0,  0.0,  0.0,  1.0,  0.0},  // dead
-        {0.0,  0.05, 0.02, 0.0,  0.93}  // immune
-    };
-
     for(int i = 0; i < numberOfRuns; ++i) {
         RandomWalkModel model(gridSize, applySocialDistanceEffect);
         model.simulation(numberOfGenerations);

@@ -3,11 +3,10 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <algorithm>
 #include <string>
-#include <fstream>
 #include "Individual.h"
 #include "State.h"
+#include "RandomNumberGenerator.h"
 
 using namespace std;
 
@@ -16,7 +15,7 @@ private:
     vector<vector<Individual>> population;
     vector<vector<Individual>> nextPopulation;
     vector<vector<double>> transitionProbabilities;
-    double contagionFactor;
+    double contagionFactor = 0.5;
     int gridSize;
     bool applySocialDistanceEffect;
 
@@ -71,7 +70,7 @@ private:
     void computeSickContact(Individual& individual, Individual& neighbour) {
         if (individual.state == State::dead) return;
 
-        double number = static_cast<double>(rand()) / RAND_MAX;
+        double number = getRandomNumber();
 
         if (number < contagionFactor) {
             individual.state = State::sick;
@@ -89,7 +88,7 @@ private:
             computeSocialInteractions(line, column);
         } else {
             const std::vector<double>& probabilities = transitionProbabilities[static_cast<int>(individual.state)];
-            double number = static_cast<double>(rand()) / RAND_MAX;
+            double number = getRandomNumber();
 
             double cumulativeProbability = 0.0;
             for (size_t i = 0; i < probabilities.size(); ++i) {
@@ -113,7 +112,7 @@ private:
 
 public:
     RandomWalkModel(int size, bool socialDistanceEffect)
-        : gridSize(size), applySocialDistanceEffect(socialDistanceEffect), contagionFactor(0.5) {
+        : gridSize(size), applySocialDistanceEffect(socialDistanceEffect) {
         initializePopulation();
         initializeProbabilities();
     }
