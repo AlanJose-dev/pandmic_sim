@@ -1,150 +1,218 @@
 #ifndef RANDOM_WAL_MODEL_H
 #define RANDOM_WAL_MODEL_H
+
 #include <iostream>
 #include <vector>
-#include <random>
-#include <string>
 #include "Individual.h"
 #include "State.h"
 #include "RandomNumberGenerator.h"
 
 using namespace std;
 
+/**
+ * The RandomWalkModel handle the simulation steps.
+ */
 class RandomWalkModel {
 
     private:
 
+        //Attributes =>
+
+        /**
+         * Random number generator machine.
+         */
         RandomNumberGenerator* randomNumberGenerator;
 
+        /**
+         * The population grid stores the individuals based on matrix size param.
+         */
         vector<vector<Individual>> population;
 
+        /**
+         * Pre load population to next run.
+         */
         vector<vector<Individual>> nextPopulation;
 
+        /**
+         * States change probabilities, ideally the sum of each line should result in 1.
+         */
         vector<vector<double>> transitionProbabilities;
 
+        /**
+         * The disease contagion factor.
+         * The default value is 0.5, corresponding to the value of the COVID 19 virus.
+         */
         double contagionFactor = 0.5;
 
-        int gridSize;
+        /**
+         * The population grid size.
+         */
+        int populationMatrixSize;
 
+        /**
+         * Determines if the lockdown effect is active.
+         */
         bool applySocialDistanceEffect;
 
-        void initializePopulation() {
-            population.resize(gridSize, std::vector<Individual>(gridSize, Individual(State::healthy)));
-            nextPopulation = population;
+        //Methods =>
 
-            int startIndex = gridSize / 2;
-            population[startIndex][startIndex].state = State::sick;
-            nextPopulation[startIndex][startIndex].state = State::sick;
+        /**
+         * Fill the population vectors.
+         */
+        void initializePopulation()
+        {
+            this->population.resize(
+                this->populationMatrixSize,
+                vector<Individual>(this->populationMatrixSize, Individual(State::healthy))
+            );
+            this->nextPopulation = this->population;
         }
 
-    void initializeProbabilities() {
-        transitionProbabilities = {
-            {0.62, 0.3, 0.05, 0.0, 0.03}, // healthy
-            {0.05, 0.64, 0.1, 0.01, 0.2}, // isolated
-            {0.0,  0.1,  0.65, 0.1,  0.15}, // sick
-            {0.0,  0.0,  0.0,  1.0,  0.0},  // dead
-            {0.0,  0.05, 0.02, 0.0,  0.93}  // immune
-        };
-    }
+        /**
+         * Put a sick individual for each one population grid.
+         */
+        void initializeSickIndividuals()
+        {
+            int startIndex = populationMatrixSize / 2;
+            this->population[startIndex][startIndex].state = State::sick;
+            this->nextPopulation[startIndex][startIndex].state = State::sick;
+        }
 
-    void computeSocialInteractions(int line, int column) {
-        int initialLine = std::max(0, line - 1);
-        int finalLine = std::min(line + 2, gridSize);
+        /**
+         * Uses a randomic rate to calculate the social interactions.
+         */
+        void computeSocialInteractions(int line, int column)
+        {
+            int initialLine = max(0, line - 1);
+            int finalLine = min(line + 2, this->populationMatrixSize);
 
-        int isolatedCount = 0;
+            int isolatedCount = 0;
 
-        for (int i = initialLine; i < finalLine; ++i) {
-            int initialColumn = std::max(0, column - 1);
-            int finalColumn = std::min(column + 2, gridSize);
+            for (int i = initialLine; i < finalLine; ++i) {
+                int initialColumn = max(0, column - 1);
+                int finalColumn = min(column + 2, this->populationMatrixSize);
 
-            for (int j = initialColumn; j < finalColumn; ++j) {
-                Individual& neighbour = population[i][j];
+                for (int j = initialColumn; j < finalColumn; ++j) {
+                    Individual& neighbour = population[i][j];
 
-                if (neighbour.state == State::isolated && applySocialDistanceEffect) {
-                    isolatedCount++;
+                    if (neighbour.state == State::isolated && this->applySocialDistanceEffect) {
+                        isolatedCount++;
+                    }
+
+                    if (neighbour.state == State::sick) {
+                        computeSickContact(nextPopulation[line][column], neighbour);
+                    }
                 }
+            }
 
-                if (neighbour.state == State::sick) {
-                    computeSickContact(nextPopulation[line][column], neighbour);
-                }
+            if (isolatedCount > 0 && this->applySocialDistanceEffect) {
+                double reduction = 0.05 * isolatedCount;
+                this->contagionFactor = max(this->contagionFactor * (1.0 - reduction), 0.1);
             }
         }
 
-        if (isolatedCount > 0 && applySocialDistanceEffect) {
-            double reduction = 0.05 * isolatedCount;
-            contagionFactor = std::max(contagionFactor * (1.0 - reduction), 0.1);
-        }
-    }
+        /**
+         * Handle the probability of an individual turns sick.
+         */
+        void computeSickContact(Individual& individual, Individual& neighbour)
+        {
+            if (individual.state == State::dead) return;
 
-    void computeSickContact(Individual& individual, Individual& neighbour) {
-        if (individual.state == State::dead) return;
-
-        double number = this->randomNumberGenerator->getRandomNumber();
-
-        if (number < contagionFactor) {
-            individual.state = State::sick;
-        }
-    }
-
-    void individualTransition(int line, int column) {
-        Individual& individual = population[line][column];
-
-        if (individual.state == State::dead) {
-            return;
-        }
-
-        if (individual.state == State::healthy) {
-            computeSocialInteractions(line, column);
-        } else {
-            const std::vector<double>& probabilities = transitionProbabilities[static_cast<int>(individual.state)];
             double number = this->randomNumberGenerator->getRandomNumber();
 
-            double cumulativeProbability = 0.0;
-            for (size_t i = 0; i < probabilities.size(); ++i) {
-                cumulativeProbability += probabilities[i];
-                if (number <= cumulativeProbability) {
-                    nextPopulation[line][column].state = static_cast<State>(i);
-                    break;
+            if (number < this->contagionFactor) {
+                individual.state = State::sick;
+            }
+        }
+
+        /**
+         * Handle the individual state transition.
+         */
+        void individualTransition(int line, int column)
+        {
+            Individual& individual = population[line][column];
+
+            if (individual.state == State::dead) {
+                return;
+            }
+
+            if (individual.state == State::healthy) {
+                this->computeSocialInteractions(line, column);
+            } else {
+                const vector<double>& probabilities = this->transitionProbabilities[static_cast<int>(individual.state)];
+                double number = this->randomNumberGenerator->getRandomNumber();
+
+                double cumulativeProbability = 0.0;
+                for (size_t i = 0; i < probabilities.size(); ++i) {
+                    cumulativeProbability += probabilities[i];
+                    if (number <= cumulativeProbability) {
+                        this->nextPopulation[line][column].state = static_cast<State>(i);
+                        break;
+                    }
                 }
             }
         }
-    }
 
-    void nextGeneration() {
-        for (int i = 0; i < gridSize; ++i) {
-            for (int j = 0; j < gridSize; ++j) {
-                individualTransition(i, j);
-            }
-        }
-        population = nextPopulation;
-    }
-
-public:
-    RandomWalkModel(int size, bool socialDistanceEffect)
-        : gridSize(size), applySocialDistanceEffect(socialDistanceEffect)
-    {
-        this->randomNumberGenerator = new RandomNumberGenerator();    
-        initializePopulation();
-        initializeProbabilities();
-    }
-
-    int getStateCount(State state) {
-        int cumulated = 0;
-        for (const auto& row : population) {
-            for (const auto& individual : row) {
-                if (individual.state == state) {
-                    cumulated++;
+        /**
+         * Make the individual transition for each individual and replace the population grids.
+         */
+        void nextGeneration()
+        {
+            for (int i = 0; i < this->populationMatrixSize; ++i) {
+                for (int j = 0; j < this->populationMatrixSize; ++j) {
+                    this->individualTransition(i, j);
                 }
             }
+            this->population = this->nextPopulation;
         }
-        return cumulated;
-    }
 
-    void simulation(int generations) {
-        for (int i = 0; i < generations; ++i) {
-            nextGeneration();
+    public:
+
+        /**
+         * Constructor.
+         */
+        RandomWalkModel(int size, bool socialDistanceEffect)
+            : populationMatrixSize(size), applySocialDistanceEffect(socialDistanceEffect)
+        {
+            this->randomNumberGenerator = new RandomNumberGenerator();    
+            this->initializePopulation();
+            this->initializeSickIndividuals();
         }
-    }
+
+        /**
+         * Set the model states transition probabilities via main file.
+         */
+        void setTransitionProbabilities(vector<vector<double>> transitionProbabilities)
+        {
+            this->transitionProbabilities = transitionProbabilities;
+        }
+
+        /**
+         * Get the individuals count based on given state.
+         */
+        int getStateCount(State state)
+        {
+            int cumulated = 0;
+            for (const auto& row : this->population) {
+                for (const auto& individual : row) {
+                    if (individual.state == state) {
+                        cumulated++;
+                    }
+                }
+            }
+            return cumulated;
+        }
+
+        /**
+         * Run the generations during the generations count.
+         */
+        void simulation(int generations)
+        {
+            for (int i = 0; i < generations; ++i) {
+                this->nextGeneration();
+            }
+        }
+
 };
 
 #endif
