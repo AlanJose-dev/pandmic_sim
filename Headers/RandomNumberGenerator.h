@@ -2,6 +2,7 @@
 #define RANDOM_NUMBER_GENERATOR_H
 
 #include <random>
+#include <chrono>
 
 /**
  * The number randomization machine returns a random double
@@ -20,7 +21,8 @@ class RandomNumberGenerator {
          */
         std::mt19937& getGenerator()
         {
-            static std::mt19937 gen(std::random_device{}());
+            auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+            static std::mt19937 gen(seed);
             return gen;
         }
 
