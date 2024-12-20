@@ -14,7 +14,7 @@ using namespace std;
  */
 class RandomWalkModel {
 
-    private:
+    protected:
 
         //Attributes =>
 
