@@ -1,7 +1,8 @@
 #include "Headers/RandomWalkModel.h"
 #include "Headers/RandomWalkModelParallel.h"
 #include "Headers/State.h"
-#include <unistd.h>
+#include "Headers/ProgramInfoViewer.h"
+#include <getopt.h>
 #include <memory>
 
 using namespace std;
@@ -17,32 +18,50 @@ int main(int argc, char* argv[]) {
     
     //Parse CLI options.
     //Don't move.
+    static struct option longOptions[] = {
+    {"runs", optional_argument, nullptr, 'r'},
+    {"population", optional_argument, nullptr, 'p'},
+    {"generations", optional_argument, nullptr, 'g'},
+    {"social-distance-effect", no_argument, nullptr, 's'},
+    {"threads", optional_argument, nullptr, 't'},
+    {"image", no_argument, nullptr, 'i'},
+    {"help", no_argument, nullptr, 'h'},
+    {"version", no_argument, nullptr, 'v'},
+    {nullptr, 0, nullptr, 0}
+};
+
+    const char* shortOptions = "r:p:g:st:ihv";
+
     int cliOption;
-    while((cliOption = getopt(argc, argv, "r:g:n:s:t:i:")) != -1) {
-        switch(cliOption) {
+    while ((cliOption = getopt_long(argc, argv, shortOptions, longOptions, nullptr)) != -1) {
+        switch (cliOption) {
             case 'r':
                 numberOfRuns = stoi(optarg);
-            break;
-            case 'g':
+                break;
+            case 'p':
                 populationMatrixSize = stoi(optarg);
-            break;
-            case 'n':
+                break;
+            case 'g':
                 numberOfGenerations = stoi(optarg);
-            break;
+                break;
             case 's':
-                applySocialDistanceEffect = stoi(optarg) != 0;
-            break;
+                applySocialDistanceEffect = true;
+                break;
             case 't':
                 threadCount = stoi(optarg);
-            break;
+                break;
             case 'i':
-                generateImage = stoi(optarg) != 0;
-            break;
+                generateImage = true;
+                break;
+            case 'h': // Handle both --help and -h
+                printHelp();
+                exit(EXIT_SUCCESS); // Terminate the program
+            case 'v':
+                printVersion();
+                exit(EXIT_SUCCESS); // Terminate the program
             default:
-                cerr << "Usage: " << argv[0] << 
-                " [-r numberOfRuns] [-g populationMatrixSize] [-n numberOfGenerations] [-s applySocialDistanceEffect (1/0)] [-t threadCount]"
-                << endl;
-            return EXIT_FAILURE;
+                cerr << "Unknown option. Use -h or --help for usage information.\n";
+                exit(EXIT_FAILURE);
         }
     }
 
@@ -54,9 +73,13 @@ int main(int argc, char* argv[]) {
         {0.0,  0.0,  0.0,  1.0,  0.0},  // dead
         {0.0,  0.05, 0.02, 0.0,  0.93}  // immune
     };
-
     bool isMultiThreading = threadCount > 1;
     auto startTime = (chrono::high_resolution_clock::now());
+
+    printHeaders(
+        new int[4]{numberOfRuns, populationMatrixSize, numberOfGenerations, threadCount},
+        new bool[2]{applySocialDistanceEffect, generateImage}
+    );
 
     /**
      * Executes the model.
@@ -74,6 +97,7 @@ int main(int argc, char* argv[]) {
             }
             if(generateImage) {
                 model->generateImage();
+                cout << "\nImage generated" << endl;
             }
             return EXIT_SUCCESS;
         }
@@ -94,6 +118,7 @@ int main(int argc, char* argv[]) {
         }
         if(generateImage) {
             model->generateImage();
+            cout << "\nImage generated" << endl;
         }
         return EXIT_SUCCESS;
     }
