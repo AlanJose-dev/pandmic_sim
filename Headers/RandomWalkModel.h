@@ -6,6 +6,7 @@
 #include "Individual.h"
 #include "State.h"
 #include "RandomNumberGenerator.h"
+#include "ImageGenerator.h"
 
 using namespace std;
 
@@ -201,6 +202,15 @@ class RandomWalkModel {
                 }
             }
             return cumulated;
+        }
+
+        void generateImage()
+        {
+            const char* imageFilename = "Visual_Example_";
+            time_t currentTimestamp;
+            time(&currentTimestamp);
+            string fullImageFilename = string(imageFilename) + string(ctime(&currentTimestamp)) + string(".png");
+            ImageGenerator::generate(fullImageFilename.c_str(), this->population);
         }
 
         /**

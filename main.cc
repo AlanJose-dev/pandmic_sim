@@ -2,6 +2,7 @@
 #include "Headers/RandomWalkModelParallel.h"
 #include "Headers/State.h"
 #include <unistd.h>
+#include <memory>
 
 using namespace std;
 
@@ -12,32 +13,36 @@ int main(int argc, char* argv[]) {
     int numberOfGenerations = 10;
     bool applySocialDistanceEffect = false;
     int threadCount = 1;
+    bool generateImage = false;
     
     //Parse CLI options.
     //Don't move.
     int cliOption;
-    while((cliOption = getopt(argc, argv, "r:g:n:s:t:")) != -1) {
+    while((cliOption = getopt(argc, argv, "r:g:n:s:t:i:")) != -1) {
         switch(cliOption) {
             case 'r':
                 numberOfRuns = stoi(optarg);
-                break;
+            break;
             case 'g':
                 populationMatrixSize = stoi(optarg);
-                break;
+            break;
             case 'n':
                 numberOfGenerations = stoi(optarg);
-                break;
+            break;
             case 's':
                 applySocialDistanceEffect = stoi(optarg) != 0;
-                break;
+            break;
             case 't':
                 threadCount = stoi(optarg);
-                break;
+            break;
+            case 'i':
+                generateImage = stoi(optarg) != 0;
+            break;
             default:
                 cerr << "Usage: " << argv[0] << 
                 " [-r numberOfRuns] [-g populationMatrixSize] [-n numberOfGenerations] [-s applySocialDistanceEffect (1/0)] [-t threadCount]"
                 << endl;
-                return EXIT_FAILURE;
+            return EXIT_FAILURE;
         }
     }
 
@@ -51,7 +56,6 @@ int main(int argc, char* argv[]) {
     };
 
     bool isMultiThreading = threadCount > 1;
-
     auto startTime = (chrono::high_resolution_clock::now());
 
     /**
@@ -60,13 +64,18 @@ int main(int argc, char* argv[]) {
     if(isMultiThreading) {
         try
         {
+            unique_ptr<RandomWalkModelParallel> model;
             for(int i = 0; i < numberOfRuns; ++i) {
-            RandomWalkModelParallel model(populationMatrixSize, applySocialDistanceEffect, threadCount);
-            model.setTransitionProbabilities(transitionProbabilities);
-            model.parallelSimulation(numberOfGenerations);
-            //Print the individuals count based on current state.
-            cout << model.getStateCount(State::dead) << endl;
-        }
+                model = make_unique<RandomWalkModelParallel>(populationMatrixSize, applySocialDistanceEffect, threadCount);
+                model->setTransitionProbabilities(transitionProbabilities);
+                model->parallelSimulation(numberOfGenerations);
+                //Print the individuals count based on current state.
+                cout << model->getStateCount(State::dead) << endl;
+            }
+            if(generateImage) {
+                model->generateImage();
+            }
+            return EXIT_SUCCESS;
         }
         catch(invalid_argument& e)
         {
@@ -75,14 +84,17 @@ int main(int argc, char* argv[]) {
         }
     }
     else {
+        unique_ptr<RandomWalkModel> model;
         for(int i = 0; i < numberOfRuns; ++i) {
-            RandomWalkModel model(populationMatrixSize, applySocialDistanceEffect);
-            model.setTransitionProbabilities(transitionProbabilities);
-            model.simulation(numberOfGenerations);
+            model = make_unique<RandomWalkModel>(populationMatrixSize, applySocialDistanceEffect);
+            model->setTransitionProbabilities(transitionProbabilities);
+            model->simulation(numberOfGenerations);
             //Print the individuals count based on current state.
-            cout << model.getStateCount(State::dead) << endl;
+            cout << model->getStateCount(State::dead) << endl;
         }
+        if(generateImage) {
+            model->generateImage();
+        }
+        return EXIT_SUCCESS;
     }
-
-    return EXIT_SUCCESS;
 }
